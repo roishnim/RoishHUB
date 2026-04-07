@@ -997,10 +997,19 @@ function contactForm(c) {
       </div>
       <div class="form-group">
         <label class="form-label">Company</label>
-        <select id="f-company">
+        <select id="f-company" onchange="handleCompanySelect(this.value)">
           <option value="">— No company —</option>
+          <option value="__new__">➕ Add new company…</option>
           ${companies.sort((a,b)=>a.name.localeCompare(b.name)).map(co=>`<option value="${co.id}" ${c.company_id===co.id?'selected':''}>${escape(co.name)}</option>`).join('')}
         </select>
+        <div id="new-company-box" style="display:none;margin-top:8px;padding:12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px">
+          <p style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">New Company Name *</p>
+          <div style="display:flex;gap:8px">
+            <input id="f-new-company-name" type="text" placeholder="e.g. Acme Corp" style="flex:1" />
+            <button type="button" class="btn btn-primary btn-sm" onclick="createInlineCompany()">Create</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="cancelInlineCompany()">✕</button>
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Department</label>
@@ -1021,6 +1030,50 @@ function contactForm(c) {
     </div>`;
 }
 
+function handleCompanySelect(val) {
+  const box = document.getElementById('new-company-box');
+  if (val === '__new__') {
+    box.style.display = 'block';
+    document.getElementById('f-new-company-name').focus();
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function cancelInlineCompany() {
+  document.getElementById('f-company').value = '';
+  document.getElementById('new-company-box').style.display = 'none';
+}
+
+async function createInlineCompany() {
+  const name = document.getElementById('f-new-company-name').value.trim();
+  if (!name) { showToast('Please enter a company name', 'error'); return; }
+  const btn = document.querySelector('#new-company-box .btn-primary');
+  btn.disabled = true; btn.textContent = '…';
+
+  const { data, error } = await db.from('companies').insert({ name, tags: [] }).select().single();
+  btn.disabled = false; btn.textContent = 'Create';
+
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // Add to local list and select it
+  companies.push(data);
+  companies.sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById('stat-companies').textContent = companies.length;
+
+  // Add new option to dropdown and select it
+  const select = document.getElementById('f-company');
+  const opt = document.createElement('option');
+  opt.value = data.id;
+  opt.textContent = data.name;
+  select.appendChild(opt);
+  select.value = data.id;
+
+  // Hide the input box
+  document.getElementById('new-company-box').style.display = 'none';
+  showToast(`Company "${name}" created ✓`, 'success');
+}
+
 async function saveContact() {
   const first = document.getElementById('f-first').value.trim();
   const last = document.getElementById('f-last').value.trim();
@@ -1028,7 +1081,8 @@ async function saveContact() {
   const btn = document.querySelector('#modal-footer .btn-primary');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  const companyId = document.getElementById('f-company').value || null;
+  const companyIdRaw = document.getElementById('f-company').value;
+  const companyId = (companyIdRaw && companyIdRaw !== '__new__') ? companyIdRaw : null;
   const payload = {
     first_name: first,
     last_name: last,
