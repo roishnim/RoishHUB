@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Web Summit CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #111114;
+    --surface2: #18181d;
+    --surface3: #1f1f26;
+    --border: #2a2a35;
+    --border2: #353545;
+    --text: #f0f0f8;
+    --muted: #7878a0;
+    --dim: #3a3a55;
+    --accent: #c8ff00;
+    --accent2: #a8d800;
+    --accent-bg: rgba(200,255,0,0.07);
+    --red: #ff4466;
+    --red-bg: rgba(255,68,102,0.1);
+    --blue: #4488ff;
+    --blue-bg: rgba(68,136,255,0.1);
+    --green: #00e87a;
+    --green-bg: rgba(0,232,122,0.1);
+    --orange: #ff8c42;
+    --orange-bg: rgba(255,140,66,0.1);
+    --purple: #b066ff;
+    --purple-bg: rgba(176,102,255,0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .nav { padding: 12px 10px; flex: 1; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-color: rgba(200,255,0,0.15);
+  }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-stats {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 16px;
+  }
+  .sidebar-stat { text-align: center; flex: 1; }
+  .sidebar-stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); line-height: 1; }
+  .sidebar-stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 12px;
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .topbar-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--text); flex: 1; }
+  .topbar-count { font-size: 12px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── INPUTS ── */
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,255,0,0.08); }
+  input::placeholder, textarea::placeholder { color: var(--dim); }
+  select option { background: var(--surface2); }
+
+  .search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .search-row input { flex: 1; min-width: 200px; }
+  .search-row select { width: 160px; flex-shrink: 0; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #0a0a0c; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--surface3); border-color: var(--border2); }
+  .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,68,102,0.2); }
+  .btn-danger:hover { background: rgba(255,68,102,0.2); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid transparent; padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* ── TABLE ── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    white-space: nowrap;
+  }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.1s; cursor: pointer; }
+  tbody tr:hover td { background: var(--surface2); }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .badge-blue { background: var(--blue-bg); color: var(--blue); border-color: rgba(68,136,255,0.2); }
+  .badge-green { background: var(--green-bg); color: var(--green); border-color: rgba(0,232,122,0.2); }
+  .badge-red { background: var(--red-bg); color: var(--red); border-color: rgba(255,68,102,0.2); }
+  .badge-orange { background: var(--orange-bg); color: var(--orange); border-color: rgba(255,140,66,0.2); }
+  .badge-purple { background: var(--purple-bg); color: var(--purple); border-color: rgba(176,102,255,0.2); }
+  .badge-accent { background: var(--accent-bg); color: var(--accent); border-color: rgba(200,255,0,0.2); }
+  .badge-muted { background: var(--surface3); color: var(--muted); border-color: var(--border); }
+
+  /* ── CARDS ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 0 24px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; border-radius: 4px; }
+  .close-btn:hover { color: var(--text); background: var(--surface2); }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+  /* ── DETAIL VIEW ── */
+  .detail-header {
+    display: flex; align-items: flex-start;
+    gap: 16px; margin-bottom: 24px;
+  }
+  .detail-avatar {
+    width: 52px; height: 52px; border-radius: 12px;
+    background: var(--accent-bg);
+    border: 1px solid rgba(200,255,0,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .detail-name { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; line-height: 1; }
+  .detail-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .detail-actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .info-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .info-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .info-value { font-size: 13px; color: var(--text); font-weight: 500; }
+
+  .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 20px; text-align: center;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-text { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    animation: slideInRight 0.3s ease;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    max-width: 320px;
+  }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .toast-success { border-color: rgba(0,232,122,0.3); }
+  .toast-success .toast-icon { color: var(--green); }
+  .toast-error { border-color: rgba(255,68,102,0.3); }
+  .toast-error .toast-icon { color: var(--red); }
+
+  /* ── LOADING ── */
+  .loading-row td { text-align: center; padding: 40px; color: var(--muted); }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── BACK BUTTON ── */
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; font-size: 13px; padding: 6px 0; margin-bottom: 20px; }
+  .back-btn:hover { color: var(--accent); }
+
+  /* ── LINKED CONTACTS ── */
+  .linked-contact {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.15s; margin-bottom: 8px;
+  }
+  .linked-contact:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .linked-contact-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--surface3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--accent); }
+  .linked-contact-name { font-weight: 600; font-size: 13px; }
+  .linked-contact-title { font-size: 11px; color: var(--muted); }
+
+  /* ── PAGE TRANSITIONS ── */
+  .page { animation: pageFadeIn 0.2s ease; }
+  @keyframes pageFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── NOTES ── */
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── LINK ── */
+  a.external { color: var(--accent); text-decoration: none; font-size: 12px; }
+  a.external:hover { text-decoration: underline; }
+
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; color: var(--muted); margin: 2px; }
+
+  /* ── IMPORT ── */
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: 16px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .drop-icon { font-size: 48px; margin-bottom: 16px; }
+  .drop-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; margin-bottom: 8px; }
+  .drop-sub { color: var(--muted); font-size: 13px; }
+
+  .mapping-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .mapping-table th { text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .mapping-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .mapping-table tr:last-child td { border-bottom: none; }
+  .col-sample { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mapped-to { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .mapped-contact { background: var(--blue-bg); color: var(--blue); }
+  .mapped-company { background: var(--green-bg); color: var(--green); }
+  .mapped-skip { background: var(--surface3); color: var(--dim); }
+
+  .preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .preview-table th { text-align: left; padding: 6px 10px; background: var(--surface2); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .preview-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+  .preview-table tr:nth-child(even) td { background: var(--surface2); }
+
+  .import-stat { text-align: center; padding: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; }
+  .import-stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; }
+  .import-stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .progress-bar { height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; margin: 12px 0; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+
+  .step-indicator { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  .step.active { color: var(--accent); }
+  .step.done { color: var(--green); }
+  .step-num { width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; min-width: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">WS CRM</div>
+      <div class="logo-sub">Sponsorships Hub</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('companies')" id="nav-companies">
+        <span class="nav-icon">🏢</span> Companies
+      </div>
+      <div class="nav-item" onclick="showPage('contacts')" id="nav-contacts">
+        <span class="nav-icon">👤</span> Contacts
+      </div>
+      <div class="nav-item" onclick="showPage('import')" id="nav-import">
+        <span class="nav-icon">📥</span> Import CSV
+      </div>
+    </nav>
+    <div class="sidebar-stats">
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-num" id="stat-companies">—</div>
+        <div class="sidebar-stat-label">Companies</div>
+      </div>
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-num" id="stat-contacts">—</div>
+        <div class="sidebar-stat-label">Contacts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Companies</div>
+      <span class="topbar-count" id="topbar-count">0 records</span>
+      <button class="btn btn-primary btn-sm" id="add-btn" onclick="openAddModal()">＋ Add New</button>
+    </div>
+    <div class="content" id="content">
+      <div style="display:flex;align-items:center;justify-content:center;height:300px;gap:12px;color:#7878a0;font-size:14px">
+        <div class="spinner"></div> Connecting to database…
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add Company</div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE INIT ──────────────────────────────────────────────
+const SUPABASE_URL = 'https://jixulbrqvqudddpfjydi.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_jLQwyPfOry2vqgyscTqiYQ_sbukbDHh';
+
+let db;
+try {
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+} catch(e) {
+  document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#ff4466;background:#0a0a0c;min-height:100vh"><h2>Connection Error</h2><p>${e.message}</p></div>`;
+}
+
+// ── STATE ──────────────────────────────────────────────────────
+let currentPage = 'companies';
+let companies = [];
+let contacts = [];
+let editingId = null;
+let viewingCompanyId = null;
+let viewingContactId = null;
+
+// ── INIT ───────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!db) return;
+  try {
+    await loadAll();
+    showPage('companies');
+  } catch(e) {
+    document.getElementById('content').innerHTML = `
+      <div style="padding:40px;color:#ff4466">
+        <h3 style="margin-bottom:8px">Failed to connect to database</h3>
+        <p style="color:#7878a0;font-size:13px">${e.message}</p>
+        <p style="color:#7878a0;font-size:12px;margin-top:12px">Check that your Supabase project is active at supabase.com</p>
+      </div>`;
+  }
+});
+
+async function loadAll() {
+  const [cosRes, ctsRes] = await Promise.all([
+    db.from('companies').select('*').order('name'),
+    db.from('contacts').select('*, companies(name)').order('last_name'),
+  ]);
+  if (cosRes.error) throw new Error('Companies: ' + cosRes.error.message);
+  if (ctsRes.error) throw new Error('Contacts: ' + ctsRes.error.message);
+  const cos = cosRes.data;
+  const cts = ctsRes.data;
+  companies = cos || [];
+  contacts = cts || [];
+  document.getElementById('stat-companies').textContent = companies.length;
+  document.getElementById('stat-contacts').textContent = contacts.length;
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────
+function showPage(page) {
+  currentPage = page;
+  viewingCompanyId = null;
+  viewingContactId = null;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-' + page)?.classList.add('active');
+
+  if (page === 'import') {
+    document.getElementById('add-btn').style.display = 'none';
+    document.getElementById('topbar-title').textContent = 'Import CSV';
+    document.getElementById('topbar-count').textContent = 'Upload a spreadsheet';
+    renderImport();
+    return;
+  }
+
+  document.getElementById('add-btn').style.display = 'inline-flex';
+
+  if (page === 'companies') {
+    document.getElementById('topbar-title').textContent = 'Companies';
+    document.getElementById('add-btn').textContent = '＋ Add Company';
+    renderCompanies();
+  } else if (page === 'contacts') {
+    document.getElementById('topbar-title').textContent = 'Contacts';
+    document.getElementById('add-btn').textContent = '＋ Add Contact';
+    renderContacts();
+  }
+}
+
+// ── COMPANIES PAGE ─────────────────────────────────────────────
+let companySearch = '';
+let companyFilterIndustry = '';
+let companyFilterCountry = '';
+
+function renderCompanies() {
+  const filtered = filterCompanies();
+  document.getElementById('topbar-count').textContent = filtered.length + ' companies';
+
+  const industries = [...new Set(companies.map(c => c.industry).filter(Boolean))].sort();
+  const countries = [...new Set(companies.map(c => c.country).filter(Boolean))].sort();
+
+  document.getElementById('content').innerHTML = `
+    <div class="page">
+      <div class="search-row">
+        <input type="text" placeholder="🔍  Search companies…" value="${companySearch}"
+          oninput="companySearch=this.value; renderCompanies()" />
+        <select onchange="companyFilterIndustry=this.value; renderCompanies()">
+          <option value="">All Industries</option>
+          ${industries.map(i => `<option value="${i}" ${companyFilterIndustry===i?'selected':''}>${i}</option>`).join('')}
+        </select>
+        <select onchange="companyFilterCountry=this.value; renderCompanies()">
+          <option value="">All Countries</option>
+          ${countries.map(c => `<option value="${c}" ${companyFilterCountry===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Industry</th>
+              <th>Location</th>
+              <th>Size</th>
+              <th>Tags</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.length === 0 ? `
+              <tr><td colspan="6">
+                <div class="empty">
+                  <div class="empty-icon">🏢</div>
+                  <div class="empty-text">No companies yet. Add your first one.</div>
+                </div>
+              </td></tr>` :
+              filtered.map(c => `
+                <tr onclick="viewCompany('${c.id}')">
+                  <td>
+                    <div style="font-weight:600">${escape(c.name)}</div>
+                    ${c.website ? `<a class="external" href="${c.website}" target="_blank" onclick="event.stopPropagation()">↗ website</a>` : ''}
+                  </td>
+                  <td>${c.industry ? `<span class="badge badge-blue">${escape(c.industry)}</span>` : '<span style="color:var(--dim)">—</span>'}</td>
+                  <td style="color:var(--muted)">${[c.city, c.country].filter(Boolean).join(', ') || '—'}</td>
+                  <td style="color:var(--muted)">${c.size || '—'}</td>
+                  <td>${(c.tags||[]).map(t => `<span class="tag">${escape(t)}</span>`).join('')}</td>
+                  <td onclick="event.stopPropagation()">
+                    <button class="btn btn-ghost btn-sm" onclick="openEditCompany('${c.id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteCompany('${c.id}')">Delete</button>
+                  </td>
+                </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function filterCompanies() {
+  return companies.filter(c => {
+    const s = companySearch.toLowerCase();
+    const matchSearch = !s || c.name?.toLowerCase().includes(s) || c.website?.toLowerCase().includes(s) || c.description?.toLowerCase().includes(s) || (c.tags||[]).some(t => t.toLowerCase().includes(s));
+    const matchIndustry = !companyFilterIndustry || c.industry === companyFilterIndustry;
+    const matchCountry = !companyFilterCountry || c.country === companyFilterCountry;
+    return matchSearch && matchIndustry && matchCountry;
+  });
+}
+
+// ── COMPANY DETAIL ─────────────────────────────────────────────
+function viewCompany(id) {
+  viewingCompanyId = id;
+  const c = companies.find(x => x.id === id);
+  if (!c) return;
+  const linkedContacts = contacts.filter(ct => ct.company_id === id);
+  document.getElementById('add-btn').style.display = 'none';
+  document.getElementById('topbar-title').textContent = c.name;
+  document.getElementById('topbar-count').textContent = linkedContacts.length + ' contacts';
+
+  document.getElementById('content').innerHTML = `
+    <div class="page">
+      <div class="back-btn" onclick="showPage('companies')">← Back to Companies</div>
+      <div class="detail-header">
+        <div class="detail-avatar">${getInitials(c.name)}</div>
+        <div>
+          <div class="detail-name">${escape(c.name)}</div>
+          <div class="detail-sub">${c.industry || ''} ${c.industry && c.country ? '·' : ''} ${[c.city, c.country].filter(Boolean).join(', ')}</div>
+        </div>
+        <div class="detail-actions">
+          ${c.website ? `<a href="${c.website}" target="_blank" class="btn btn-secondary btn-sm">↗ Website</a>` : ''}
+          ${c.linkedin_url ? `<a href="${c.linkedin_url}" target="_blank" class="btn btn-secondary btn-sm">in LinkedIn</a>` : ''}
+          <button class="btn btn-primary btn-sm" onclick="openEditCompany('${c.id}')">Edit</button>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Industry</div><div class="info-value">${c.industry || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Size</div><div class="info-value">${c.size || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Country</div><div class="info-value">${c.country || '—'}</div></div>
+        <div class="info-item"><div class="info-label">City</div><div class="info-value">${c.city || '—'}</div></div>
+      </div>
+
+      ${c.description ? `<div class="card" style="margin-bottom:24px"><p style="color:var(--muted);line-height:1.6">${escape(c.description)}</p></div>` : ''}
+
+      ${(c.tags||[]).length > 0 ? `
+        <div style="margin-bottom:24px">${(c.tags||[]).map(t=>`<span class="tag">${escape(t)}</span>`).join('')}</div>
+      ` : ''}
+
+      <div class="section-label">Contacts at this company</div>
+      ${linkedContacts.length === 0
+        ? `<p style="color:var(--muted);font-size:13px;margin-bottom:8px">No contacts linked yet.</p>`
+        : linkedContacts.map(ct => `
+          <div class="linked-contact" onclick="viewContact('${ct.id}')">
+            <div class="linked-contact-avatar">${getInitials(ct.first_name + ' ' + ct.last_name)}</div>
+            <div>
+              <div class="linked-contact-name">${escape(ct.first_name)} ${escape(ct.last_name)}</div>
+              <div class="linked-contact-title">${ct.title || ''} ${ct.seniority ? '· ' + ct.seniority : ''}</div>
+            </div>
+            ${ct.email ? `<span style="margin-left:auto;font-size:11px;color:var(--muted)">${escape(ct.email)}</span>` : ''}
+          </div>`).join('')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="openAddContactForCompany('${c.id}')">＋ Add Contact</button>
+    </div>`;
+}
+
+// ── CONTACTS PAGE ──────────────────────────────────────────────
+let contactSearch = '';
+let contactFilterSeniority = '';
+let contactFilterCompany = '';
+
+function renderContacts() {
+  const filtered = filterContacts();
+  document.getElementById('topbar-count').textContent = filtered.length + ' contacts';
+
+  const seniorities = [...new Set(contacts.map(c => c.seniority).filter(Boolean))].sort();
+
+  document.getElementById('content').innerHTML = `
+    <div class="page">
+      <div class="search-row">
+        <input type="text" placeholder="🔍  Search contacts…" value="${contactSearch}"
+          oninput="contactSearch=this.value; renderContacts()" />
+        <select onchange="contactFilterSeniority=this.value; renderContacts()">
+          <option value="">All Seniority</option>
+          ${seniorities.map(s => `<option value="${s}" ${contactFilterSeniority===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <select onchange="contactFilterCompany=this.value; renderContacts()">
+          <option value="">All Companies</option>
+          ${companies.sort((a,b)=>a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${contactFilterCompany===c.id?'selected':''}>${escape(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Company</th>
+              <th>Title</th>
+              <th>Seniority</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.length === 0 ? `
+              <tr><td colspan="7">
+                <div class="empty">
+                  <div class="empty-icon">👤</div>
+                  <div class="empty-text">No contacts yet. Add your first one.</div>
+                </div>
+              </td></tr>` :
+              filtered.map(c => `
+                <tr onclick="viewContact('${c.id}')">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-bg);border:1px solid rgba(200,255,0,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">${getInitials(c.first_name+' '+c.last_name)}</div>
+                      <div><div style="font-weight:600">${escape(c.first_name)} ${escape(c.last_name)}</div></div>
+                    </div>
+                  </td>
+                  <td style="color:var(--muted)">${c.companies?.name ? escape(c.companies.name) : '—'}</td>
+                  <td style="color:var(--muted)">${c.title || '—'}</td>
+                  <td>${c.seniority ? `<span class="badge ${seniorityBadge(c.seniority)}">${escape(c.seniority)}</span>` : '<span style="color:var(--dim)">—</span>'}</td>
+                  <td>
+                    ${c.email ? `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${escape(c.email)}</span>` : '<span style="color:var(--dim)">—</span>'}
+                  </td>
+                  <td style="color:var(--muted)">${c.department || '—'}</td>
+                  <td onclick="event.stopPropagation()">
+                    <button class="btn btn-ghost btn-sm" onclick="openEditContact('${c.id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteContact('${c.id}')">Delete</button>
+                  </td>
+                </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function filterContacts() {
+  return contacts.filter(c => {
+    const s = contactSearch.toLowerCase();
+    const fullName = (c.first_name + ' ' + c.last_name).toLowerCase();
+    const matchSearch = !s || fullName.includes(s) || c.email?.toLowerCase().includes(s) || c.title?.toLowerCase().includes(s) || c.department?.toLowerCase().includes(s) || c.companies?.name?.toLowerCase().includes(s);
+    const matchSeniority = !contactFilterSeniority || c.seniority === contactFilterSeniority;
+    const matchCompany = !contactFilterCompany || c.company_id === contactFilterCompany;
+    return matchSearch && matchSeniority && matchCompany;
+  });
+}
+
+// ── CONTACT DETAIL ─────────────────────────────────────────────
+function viewContact(id) {
+  viewingContactId = id;
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  const company = companies.find(x => x.id === c.company_id);
+  document.getElementById('add-btn').style.display = 'none';
+  document.getElementById('topbar-title').textContent = c.first_name + ' ' + c.last_name;
+  document.getElementById('topbar-count').textContent = c.title || '';
+
+  document.getElementById('content').innerHTML = `
+    <div class="page">
+      <div class="back-btn" onclick="showPage('contacts')">← Back to Contacts</div>
+      <div class="detail-header">
+        <div class="detail-avatar">${getInitials(c.first_name+' '+c.last_name)}</div>
+        <div>
+          <div class="detail-name">${escape(c.first_name)} ${escape(c.last_name)}</div>
+          <div class="detail-sub">${[c.title, company?.name].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="detail-actions">
+          ${c.email ? `<button class="btn btn-secondary btn-sm" onclick="copyText('${c.email}')">📋 Copy Email</button>` : ''}
+          ${c.linkedin_url ? `<a href="${c.linkedin_url}" target="_blank" class="btn btn-secondary btn-sm">in LinkedIn</a>` : ''}
+          <button class="btn btn-primary btn-sm" onclick="openEditContact('${c.id}')">Edit</button>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Seniority</div><div class="info-value">${c.seniority || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Department</div><div class="info-value">${c.department || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Location</div><div class="info-value">${c.location || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Phone</div><div class="info-value">${c.phone || '—'}</div></div>
+        ${c.email ? `<div class="info-item" style="grid-column:span 2"><div class="info-label">Email</div><div class="info-value" style="font-family:'JetBrains Mono',monospace;font-size:12px">${escape(c.email)}</div></div>` : ''}
+      </div>
+
+      ${company ? `
+        <div class="section-label">Company</div>
+        <div class="linked-contact" onclick="viewCompany('${company.id}')">
+          <div class="linked-contact-avatar">${getInitials(company.name)}</div>
+          <div>
+            <div class="linked-contact-name">${escape(company.name)}</div>
+            <div class="linked-contact-title">${company.industry || ''} ${company.country ? '· ' + company.country : ''}</div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${c.notes ? `
+        <div class="section-label" style="margin-top:20px">Notes</div>
+        <div class="card"><p style="color:var(--muted);line-height:1.6;white-space:pre-wrap">${escape(c.notes)}</p></div>
+      ` : ''}
+    </div>`;
+}
+
+// ── MODALS ─────────────────────────────────────────────────────
+function openAddModal() {
+  if (currentPage === 'companies') openAddCompany();
+  else openAddContact();
+}
+
+function openAddCompany() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Company';
+  document.getElementById('modal-body').innerHTML = companyForm({});
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCompany()">Save Company</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function openEditCompany(id) {
+  editingId = id;
+  const c = companies.find(x => x.id === id);
+  document.getElementById('modal-title').textContent = 'Edit Company';
+  document.getElementById('modal-body').innerHTML = companyForm(c);
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCompany()">Save Changes</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function companyForm(c) {
+  return `
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label class="form-label">Company Name *</label>
+        <input id="f-name" type="text" value="${escape(c.name||'')}" placeholder="Acme Corporation" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Industry</label>
+        <select id="f-industry">
+          <option value="">Select…</option>
+          ${['Technology','Financial Services','Telecommunications','Healthcare','Automotive','Retail & E-Commerce','Media & Entertainment','Real Estate','Energy','Food & Beverage','Travel & Hospitality','Education','Consulting','Manufacturing','Other'].map(i=>`<option value="${i}" ${c.industry===i?'selected':''}>${i}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Company Size</label>
+        <select id="f-size">
+          <option value="">Select…</option>
+          ${['1-10','11-50','51-200','201-500','501-1000','1001-5000','5001-10000','10000+'].map(s=>`<option value="${s}" ${c.size===s?'selected':''}>${s} employees</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Country</label>
+        <input id="f-country" type="text" value="${escape(c.country||'')}" placeholder="Portugal" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">City</label>
+        <input id="f-city" type="text" value="${escape(c.city||'')}" placeholder="Lisbon" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Website</label>
+        <input id="f-website" type="text" value="${escape(c.website||'')}" placeholder="https://acme.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">LinkedIn URL</label>
+        <input id="f-linkedin" type="text" value="${escape(c.linkedin_url||'')}" placeholder="https://linkedin.com/company/…" />
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Description</label>
+        <textarea id="f-description" placeholder="Brief description of the company…">${escape(c.description||'')}</textarea>
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Tags (comma separated)</label>
+        <input id="f-tags" type="text" value="${(c.tags||[]).join(', ')}" placeholder="fintech, enterprise, B2B" />
+      </div>
+    </div>`;
+}
+
+async function saveCompany() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { showToast('Company name is required', 'error'); return; }
+  const btn = document.querySelector('#modal-footer .btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const payload = {
+    name,
+    industry: document.getElementById('f-industry').value || null,
+    size: document.getElementById('f-size').value || null,
+    country: document.getElementById('f-country').value.trim() || null,
+    city: document.getElementById('f-city').value.trim() || null,
+    website: document.getElementById('f-website').value.trim() || null,
+    linkedin_url: document.getElementById('f-linkedin').value.trim() || null,
+    description: document.getElementById('f-description').value.trim() || null,
+    tags: document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+  };
+
+  let error;
+  if (editingId) {
+    const res = await db.from('companies').update(payload).eq('id', editingId).select();
+    error = res.error;
+    if (!error) companies = companies.map(c => c.id === editingId ? { ...c, ...payload } : c);
+  } else {
+    const res = await db.from('companies').insert(payload).select();
+    error = res.error;
+    if (!error && res.data) companies = [res.data[0], ...companies];
+  }
+
+  if (error) { showToast('Error: ' + error.message, 'error'); btn.disabled = false; btn.textContent = 'Save Company'; return; }
+  document.getElementById('stat-companies').textContent = companies.length;
+  closeModal();
+  showToast(editingId ? 'Company updated ✓' : 'Company added ✓', 'success');
+  if (viewingCompanyId) viewCompany(viewingCompanyId);
+  else renderCompanies();
+}
+
+async function deleteCompany(id) {
+  if (!confirm('Delete this company? This cannot be undone.')) return;
+  const { error } = await db.from('companies').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  companies = companies.filter(c => c.id !== id);
+  document.getElementById('stat-companies').textContent = companies.length;
+  showToast('Company deleted', 'success');
+  showPage('companies');
+}
+
+// ── CONTACT MODALS ─────────────────────────────────────────────
+function openAddContact() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Contact';
+  document.getElementById('modal-body').innerHTML = contactForm({});
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function openAddContactForCompany(companyId) {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Contact';
+  document.getElementById('modal-body').innerHTML = contactForm({ company_id: companyId });
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function openEditContact(id) {
+  editingId = id;
+  const c = contacts.find(x => x.id === id);
+  document.getElementById('modal-title').textContent = 'Edit Contact';
+  document.getElementById('modal-body').innerHTML = contactForm(c);
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveContact()">Save Changes</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function contactForm(c) {
+  return `
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">First Name *</label>
+        <input id="f-first" type="text" value="${escape(c.first_name||'')}" placeholder="Sarah" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name *</label>
+        <input id="f-last" type="text" value="${escape(c.last_name||'')}" placeholder="Johnson" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input id="f-title" type="text" value="${escape(c.title||'')}" placeholder="VP of Marketing" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seniority</label>
+        <select id="f-seniority">
+          <option value="">Select…</option>
+          ${['C-Suite','VP','Director','Manager','Other'].map(s=>`<option value="${s}" ${c.seniority===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="f-email" type="email" value="${escape(c.email||'')}" placeholder="sarah@company.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input id="f-phone" type="text" value="${escape(c.phone||'')}" placeholder="+1 555 000 0000" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Company</label>
+        <select id="f-company">
+          <option value="">— No company —</option>
+          ${companies.sort((a,b)=>a.name.localeCompare(b.name)).map(co=>`<option value="${co.id}" ${c.company_id===co.id?'selected':''}>${escape(co.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <input id="f-dept" type="text" value="${escape(c.department||'')}" placeholder="Marketing" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input id="f-location" type="text" value="${escape(c.location||'')}" placeholder="Lisbon, Portugal" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">LinkedIn URL</label>
+        <input id="f-linkedin" type="text" value="${escape(c.linkedin_url||'')}" placeholder="https://linkedin.com/in/…" />
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Notes</label>
+        <textarea id="f-notes" placeholder="Any notes about this contact…">${escape(c.notes||'')}</textarea>
+      </div>
+    </div>`;
+}
+
+async function saveContact() {
+  const first = document.getElementById('f-first').value.trim();
+  const last = document.getElementById('f-last').value.trim();
+  if (!first || !last) { showToast('First and last name are required', 'error'); return; }
+  const btn = document.querySelector('#modal-footer .btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const companyId = document.getElementById('f-company').value || null;
+  const payload = {
+    first_name: first,
+    last_name: last,
+    title: document.getElementById('f-title').value.trim() || null,
+    seniority: document.getElementById('f-seniority').value || null,
+    email: document.getElementById('f-email').value.trim() || null,
+    phone: document.getElementById('f-phone').value.trim() || null,
+    company_id: companyId,
+    department: document.getElementById('f-dept').value.trim() || null,
+    location: document.getElementById('f-location').value.trim() || null,
+    linkedin_url: document.getElementById('f-linkedin').value.trim() || null,
+    notes: document.getElementById('f-notes').value.trim() || null,
+  };
+
+  let error;
+  if (editingId) {
+    const res = await db.from('contacts').update(payload).eq('id', editingId).select('*, companies(name)');
+    error = res.error;
+    if (!error && res.data) contacts = contacts.map(c => c.id === editingId ? res.data[0] : c);
+  } else {
+    const res = await db.from('contacts').insert(payload).select('*, companies(name)');
+    error = res.error;
+    if (!error && res.data) contacts = [res.data[0], ...contacts];
+  }
+
+  if (error) { showToast('Error: ' + error.message, 'error'); btn.disabled = false; btn.textContent = 'Save Contact'; return; }
+  document.getElementById('stat-contacts').textContent = contacts.length;
+  closeModal();
+  showToast(editingId ? 'Contact updated ✓' : 'Contact added ✓', 'success');
+  if (viewingContactId) viewContact(viewingContactId);
+  else if (viewingCompanyId) viewCompany(viewingCompanyId);
+  else renderContacts();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Delete this contact? This cannot be undone.')) return;
+  const { error } = await db.from('contacts').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  contacts = contacts.filter(c => c.id !== id);
+  document.getElementById('stat-contacts').textContent = contacts.length;
+  showToast('Contact deleted', 'success');
+  showPage('contacts');
+}
+
+// ── HELPERS ────────────────────────────────────────────────────
+function closeModal() { document.getElementById('modal').style.display = 'none'; editingId = null; }
+function closeModalOutside(e) { if (e.target.id === 'modal') closeModal(); }
+
+// ── CSV IMPORT ─────────────────────────────────────────────────
+
+// State for import flow
+let importStep = 'upload'; // upload | mapping | preview | importing | done
+let importRows = [];
+let importHeaders = [];
+let importMapping = {};
+let importFilename = '';
+
+// Smart auto-detection: maps any column header to a CRM field
+const FIELD_HINTS = {
+  first_name:       ['first name','firstname','first','fname','given name','forename'],
+  last_name:        ['last name','lastname','last','lname','surname','family name'],
+  email:            ['email','email address','work email','e-mail','mail'],
+  phone:            ['phone','mobile','cell','telephone','phone number','mobile number'],
+  title:            ['title','job title','position','role','job role','job position'],
+  seniority:        ['seniority','level','seniority level','job level'],
+  department:       ['department','dept','team','division','function'],
+  location:         ['location','city','contact city','contact location'],
+  linkedin_url:     ['linkedin','linkedin url','linkedin profile','profile url','li url'],
+  notes:            ['notes','note','comments','comment','bio'],
+  company_name:     ['company','company name','organization','organisation','employer','account','account name'],
+  company_website:  ['website','company website','web','url','company url','domain'],
+  company_industry: ['industry','sector','vertical','company industry'],
+  company_country:  ['country','company country','hq country','headquarters country'],
+  company_city:     ['company city','hq city','headquarters city','office city'],
+  company_linkedin: ['company linkedin','company linkedin url','linkedin company'],
+  company_size:     ['employees','company size','employee count','headcount','number of employees','# employees','no. employees'],
+};
+
+const FIELD_LABELS = {
+  first_name: 'First Name', last_name: 'Last Name', email: 'Email',
+  phone: 'Phone', title: 'Job Title', seniority: 'Seniority',
+  department: 'Department', location: 'Location', linkedin_url: 'LinkedIn URL', notes: 'Notes',
+  company_name: 'Company Name', company_website: 'Company Website',
+  company_industry: 'Industry', company_country: 'Company Country',
+  company_city: 'Company City', company_linkedin: 'Company LinkedIn',
+  company_size: 'Company Size', _skip: '— Skip this column —',
+};
+
+function autoDetectMapping(headers) {
+  const mapping = {};
+  for (const h of headers) {
+    const lower = h.toLowerCase().trim();
+    let matched = '_skip';
+    for (const [field, hints] of Object.entries(FIELD_HINTS)) {
+      if (hints.some(hint => lower === hint || lower.includes(hint) || hint.includes(lower))) {
+        matched = field;
+        break;
+      }
+    }
+    mapping[h] = matched;
+  }
+  return mapping;
+}
+
+function parseCSV(text) {
+  // Handle both comma and semicolon delimiters, and quoted fields
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+
+  // Detect delimiter
+  const firstLine = lines[0];
+  const commas = (firstLine.match(/,/g) || []).length;
+  const semis = (firstLine.match(/;/g) || []).length;
+  const delim = semis > commas ? ';' : ',';
+
+  function parseLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === delim && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  const headers = parseLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseLine(lines[i]);
+    if (values.every(v => !v)) continue; // skip blank rows
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (values[idx] || '').replace(/^"|"$/g, '').trim(); });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function renderImport() {
+  importStep = 'upload';
+  importRows = [];
+  importHeaders = [];
+  importMapping = {};
+  importFilename = '';
+  renderImportStep();
+}
+
+function renderImportStep() {
+  const content = document.getElementById('content');
+
+  const steps = ['upload','mapping','preview','done'];
+  const stepNames = ['Upload','Map Columns','Preview','Done'];
+  const currentIdx = steps.indexOf(importStep === 'importing' ? 'preview' : importStep);
+
+  const stepHtml = `
+    <div class="step-indicator">
+      ${stepNames.map((name, i) => `
+        <div class="step ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}">
+          <div class="step-num">${i < currentIdx ? '✓' : i+1}</div>
+          <span>${name}</span>
+        </div>
+        ${i < stepNames.length-1 ? '<div class="step-line"></div>' : ''}
+      `).join('')}
+    </div>`;
+
+  if (importStep === 'upload') {
+    content.innerHTML = `
+      <div class="page" style="max-width:600px;margin:0 auto">
+        ${stepHtml}
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="handleFileDrop(event)">
+          <div class="drop-icon">📂</div>
+          <div class="drop-title">Drop your CSV file here</div>
+          <div class="drop-sub" style="margin-bottom:16px">or click to browse your computer</div>
+          <div class="drop-sub" style="font-size:11px;color:var(--dim)">Supports .csv files exported from Excel, Google Sheets, or any spreadsheet</div>
+        </div>
+        <input type="file" id="csv-input" accept=".csv,.txt" style="display:none" onchange="handleFileSelect(event)" />
+
+        <div style="margin-top:24px;padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">📋 HOW IT WORKS</p>
+          <p style="font-size:12px;color:var(--muted);line-height:1.7">
+            1. Export your contacts from Excel or Google Sheets as a <strong style="color:var(--text)">CSV file</strong><br>
+            2. Drop it here — the app reads your column names automatically<br>
+            3. Check the preview, then click Import — contacts and companies are created and linked together
+          </p>
+        </div>
+      </div>`;
+  }
+
+  else if (importStep === 'mapping') {
+    const contactFields = ['first_name','last_name','email','phone','title','seniority','department','location','linkedin_url','notes'];
+    const companyFields = ['company_name','company_website','company_industry','company_country','company_city','company_linkedin','company_size'];
+    const allOptions = ['_skip',...contactFields,...companyFields];
+
+    content.innerHTML = `
+      <div class="page" style="max-width:760px;margin:0 auto">
+        ${stepHtml}
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px">
+          <span style="font-size:20px">📄</span>
+          <div>
+            <p style="font-weight:600;font-size:13px">${escape(importFilename)}</p>
+            <p style="font-size:12px;color:var(--muted)">${importRows.length} rows · ${importHeaders.length} columns detected</p>
+          </div>
+        </div>
+
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+          The app has auto-detected your columns. Check they look right — change any that are wrong using the dropdowns.
+        </p>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+          <table class="mapping-table">
+            <thead><tr>
+              <th>Your Column</th>
+              <th>Example Value</th>
+              <th>Maps To</th>
+            </tr></thead>
+            <tbody>
+              ${importHeaders.map(h => {
+                const sample = importRows[0]?.[h] || '';
+                const mapped = importMapping[h] || '_skip';
+                const isContact = ['first_name','last_name','email','phone','title','seniority','department','location','linkedin_url','notes'].includes(mapped);
+                const isCompany = ['company_name','company_website','company_industry','company_country','company_city','company_linkedin','company_size'].includes(mapped);
+                return `<tr>
+                  <td style="font-weight:600">${escape(h)}</td>
+                  <td class="col-sample">${escape(sample)}</td>
+                  <td>
+                    <select onchange="importMapping['${h}']=this.value;renderImportStep()"
+                      style="width:200px;padding:5px 8px;font-size:12px">
+                      <option value="_skip" ${mapped==='_skip'?'selected':''}>— Skip this column —</option>
+                      <optgroup label="Contact Fields">
+                        ${contactFields.map(f=>`<option value="${f}" ${mapped===f?'selected':''}>${FIELD_LABELS[f]}</option>`).join('')}
+                      </optgroup>
+                      <optgroup label="Company Fields">
+                        ${companyFields.map(f=>`<option value="${f}" ${mapped===f?'selected':''}>${FIELD_LABELS[f]}</option>`).join('')}
+                      </optgroup>
+                    </select>
+                    ${mapped!=='_skip' ? `<span class="mapped-to ${isContact?'mapped-contact':isCompany?'mapped-company':'mapped-skip'}" style="margin-left:8px">${isContact?'Contact':isCompany?'Company':''}</span>` : ''}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary" onclick="renderImport()">← Start Over</button>
+          <button class="btn btn-primary" onclick="goToPreview()">Preview Import →</button>
+        </div>
+      </div>`;
+  }
+
+  else if (importStep === 'preview') {
+    const { contacts: previewContacts, companies: previewCompanies, skipped } = buildPreviewData();
+    const previewSlice = previewContacts.slice(0, 10);
+
+    content.innerHTML = `
+      <div class="page" style="max-width:800px;margin:0 auto">
+        ${stepHtml}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">
+          <div class="import-stat">
+            <div class="import-stat-num" style="color:var(--green)">${previewCompanies.length}</div>
+            <div class="import-stat-label">Companies</div>
+          </div>
+          <div class="import-stat">
+            <div class="import-stat-num" style="color:var(--blue)">${previewContacts.length}</div>
+            <div class="import-stat-label">Contacts</div>
+          </div>
+          <div class="import-stat">
+            <div class="import-stat-num" style="color:var(--muted)">${skipped}</div>
+            <div class="import-stat-label">Rows Skipped</div>
+          </div>
+        </div>
+
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Showing first ${Math.min(10, previewContacts.length)} of ${previewContacts.length} contacts to be imported:
+        </p>
+
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:auto;margin-bottom:20px;max-height:320px">
+          <table class="preview-table">
+            <thead><tr>
+              <th>Name</th>
+              <th>Title</th>
+              <th>Email</th>
+              <th>Company</th>
+              <th>Industry</th>
+              <th>Country</th>
+            </tr></thead>
+            <tbody>
+              ${previewSlice.length === 0
+                ? `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No valid contacts found. Check your column mapping.</td></tr>`
+                : previewSlice.map(c => `<tr>
+                    <td><strong>${escape(c.first_name)} ${escape(c.last_name)}</strong></td>
+                    <td>${escape(c.title||'')}</td>
+                    <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${escape(c.email||'')}</td>
+                    <td>${escape(c._company_name||'')}</td>
+                    <td>${escape(c._company_industry||'')}</td>
+                    <td>${escape(c._company_country||'')}</td>
+                  </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        ${previewContacts.length === 0
+          ? `<div style="padding:12px;background:var(--red-bg);border:1px solid rgba(255,68,102,0.2);border-radius:8px;margin-bottom:16px;color:var(--red);font-size:13px">
+              ⚠️ No contacts could be built from your mapping. Go back and make sure at least <strong>First Name</strong> or <strong>Last Name</strong> is mapped.
+             </div>`
+          : `<div style="padding:12px;background:var(--green-bg);border:1px solid rgba(0,232,122,0.2);border-radius:8px;margin-bottom:16px;font-size:13px">
+              ✓ Ready to import. Existing companies will be reused — no duplicates will be created.
+             </div>`}
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary" onclick="importStep='mapping';renderImportStep()">← Edit Mapping</button>
+          <button class="btn btn-primary" onclick="runImport()" ${previewContacts.length===0?'disabled':''}>
+            Import ${previewContacts.length} Contacts →
+          </button>
+        </div>
+      </div>`;
+  }
+
+  else if (importStep === 'importing') {
+    content.innerHTML = `
+      <div class="page" style="max-width:500px;margin:0 auto;text-align:center;padding-top:60px">
+        <div class="spinner" style="width:40px;height:40px;border-width:3px;margin:0 auto 20px"></div>
+        <p style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;margin-bottom:8px">Importing…</p>
+        <p style="color:var(--muted);font-size:13px" id="import-progress-text">Preparing data…</p>
+        <div class="progress-bar" style="max-width:300px;margin:16px auto">
+          <div class="progress-fill" id="import-progress-bar" style="width:0%"></div>
+        </div>
+      </div>`;
+  }
+
+  else if (importStep === 'done') {
+    content.innerHTML = `
+      <div class="page" style="max-width:500px;margin:0 auto;text-align:center;padding-top:60px">
+        ${stepHtml}
+        <div style="font-size:64px;margin-bottom:16px">🎉</div>
+        <p style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:var(--accent);margin-bottom:8px">Import Complete!</p>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:32px" id="done-summary"></p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn btn-secondary" onclick="renderImport()">Import Another File</button>
+          <button class="btn btn-primary" onclick="showPage('contacts')">View Contacts →</button>
+        </div>
+      </div>`;
+  }
+}
+
+function handleFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('drop-zone')?.classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  if (!file.name.match(/\.(csv|txt)$/i)) {
+    showToast('Please upload a .csv file', 'error'); return;
+  }
+  importFilename = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const { headers, rows } = parseCSV(e.target.result);
+    if (headers.length === 0 || rows.length === 0) {
+      showToast('Could not read file — make sure it is a valid CSV', 'error'); return;
+    }
+    importHeaders = headers;
+    importRows = rows;
+    importMapping = autoDetectMapping(headers);
+    importStep = 'mapping';
+    renderImportStep();
+  };
+  reader.readAsText(file);
+}
+
+function goToPreview() {
+  const hasMeaningfulMapping = Object.values(importMapping).some(v => v !== '_skip');
+  if (!hasMeaningfulMapping) {
+    showToast('Please map at least one column before continuing', 'error'); return;
+  }
+  importStep = 'preview';
+  renderImportStep();
+}
+
+function buildPreviewData() {
+  const contactsOut = [];
+  const companiesSet = new Map(); // company_name (lowercase) → company object
+  let skipped = 0;
+
+  for (const row of importRows) {
+    // Build mapped object from this row
+    const mapped = {};
+    for (const [header, field] of Object.entries(importMapping)) {
+      if (field !== '_skip' && row[header]) mapped[field] = row[header];
+    }
+
+    const firstName = mapped.first_name || '';
+    const lastName = mapped.last_name || '';
+    if (!firstName && !lastName) { skipped++; continue; }
+
+    // Company data
+    const companyName = mapped.company_name || '';
+    if (companyName) {
+      const key = companyName.toLowerCase().trim();
+      if (!companiesSet.has(key)) {
+        companiesSet.set(key, {
+          name: companyName,
+          website: mapped.company_website || null,
+          industry: mapped.company_industry || null,
+          country: mapped.company_country || null,
+          city: mapped.company_city || null,
+          linkedin_url: mapped.company_linkedin || null,
+          size: mapped.company_size || null,
+          tags: [],
+        });
+      }
+    }
+
+    contactsOut.push({
+      first_name: firstName,
+      last_name: lastName,
+      email: mapped.email || null,
+      phone: mapped.phone || null,
+      title: mapped.title || null,
+      seniority: normaliseSeniority(mapped.seniority),
+      department: mapped.department || null,
+      location: mapped.location || null,
+      linkedin_url: mapped.linkedin_url || null,
+      notes: mapped.notes || null,
+      _company_name: companyName,
+      _company_industry: mapped.company_industry || '',
+      _company_country: mapped.company_country || '',
+    });
+  }
+
+  return {
+    contacts: contactsOut,
+    companies: [...companiesSet.values()],
+    skipped,
+  };
+}
+
+function normaliseSeniority(raw) {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (r.includes('c-suite') || r.includes('c-level') || r.includes('chief') || r.includes('ceo') || r.includes('cto') || r.includes('cfo') || r.includes('coo') || r.includes('cmo') || r.includes('president')) return 'C-Suite';
+  if (r.includes('vp') || r.includes('vice president') || r.includes('vice-president')) return 'VP';
+  if (r.includes('director')) return 'Director';
+  if (r.includes('manager') || r.includes('head of') || r.includes('lead')) return 'Manager';
+  return 'Other';
+}
+
+async function runImport() {
+  importStep = 'importing';
+  renderImportStep();
+
+  const { contacts: contactsToImport, companies: companiesToImport } = buildPreviewData();
+  const setProgress = (pct, text) => {
+    const bar = document.getElementById('import-progress-bar');
+    const txt = document.getElementById('import-progress-text');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = text;
+  };
+
+  try {
+    setProgress(10, `Creating ${companiesToImport.length} companies…`);
+
+    // Step 1: Fetch existing companies to avoid duplicates
+    const { data: existingCos } = await db.from('companies').select('id, name');
+    const existingCoMap = new Map((existingCos||[]).map(c => [c.name.toLowerCase().trim(), c.id]));
+
+    // Step 2: Insert new companies
+    const newCompanies = companiesToImport.filter(c => !existingCoMap.has(c.name.toLowerCase().trim()));
+    if (newCompanies.length > 0) {
+      const { data: inserted, error } = await db.from('companies').insert(newCompanies).select('id, name');
+      if (error) throw new Error('Company insert failed: ' + error.message);
+      (inserted||[]).forEach(c => existingCoMap.set(c.name.toLowerCase().trim(), c.id));
+    }
+
+    setProgress(40, `Importing ${contactsToImport.length} contacts…`);
+
+    // Step 3: Fetch existing contacts by email to avoid duplicates
+    const { data: existingCts } = await db.from('contacts').select('id, email');
+    const existingEmailSet = new Set((existingCts||[]).map(c => c.email?.toLowerCase()).filter(Boolean));
+
+    // Step 4: Build contact insert payloads
+    const contactPayloads = [];
+    for (const c of contactsToImport) {
+      // Skip if email already exists
+      if (c.email && existingEmailSet.has(c.email.toLowerCase())) continue;
+
+      const companyId = c._company_name
+        ? (existingCoMap.get(c._company_name.toLowerCase().trim()) || null)
+        : null;
+
+      contactPayloads.push({
+        first_name: c.first_name,
+        last_name: c.last_name,
+        email: c.email,
+        phone: c.phone,
+        title: c.title,
+        seniority: c.seniority,
+        department: c.department,
+        location: c.location,
+        linkedin_url: c.linkedin_url,
+        notes: c.notes,
+        company_id: companyId,
+      });
+    }
+
+    setProgress(70, `Saving ${contactPayloads.length} contacts to database…`);
+
+    // Insert in batches of 100
+    let insertedCount = 0;
+    const batchSize = 100;
+    for (let i = 0; i < contactPayloads.length; i += batchSize) {
+      const batch = contactPayloads.slice(i, i + batchSize);
+      const { error } = await db.from('contacts').insert(batch);
+      if (error) throw new Error('Contact insert failed: ' + error.message);
+      insertedCount += batch.length;
+      setProgress(70 + Math.floor((insertedCount / contactPayloads.length) * 25), `Saved ${insertedCount} of ${contactPayloads.length}…`);
+    }
+
+    setProgress(100, 'Done!');
+
+    // Reload data
+    await loadAll();
+
+    // Show done screen
+    importStep = 'done';
+    renderImportStep();
+    document.getElementById('done-summary').textContent =
+      `Added ${newCompanies.length} companies and ${insertedCount} contacts to your CRM.` +
+      (contactsToImport.length - insertedCount > 0 ? ` (${contactsToImport.length - insertedCount} skipped — already existed)` : '');
+
+    showToast(`Imported ${insertedCount} contacts ✓`, 'success');
+
+  } catch(err) {
+    importStep = 'preview';
+    renderImportStep();
+    showToast('Import failed: ' + err.message, 'error');
+  }
+}
+
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function getInitials(name) {
+  const parts = (name||'').trim().split(' ').filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+  return (parts[0]||'?').substring(0,2).toUpperCase();
+}
+
+function seniorityBadge(s) {
+  const map = { 'C-Suite': 'badge-accent', 'VP': 'badge-purple', 'Director': 'badge-blue', 'Manager': 'badge-green', 'Other': 'badge-muted' };
+  return map[s] || 'badge-muted';
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard ✓', 'success'));
+}
+
+function showToast(msg, type = 'success') {
+  const old = document.getElementById('toast');
+  if (old) old.remove();
+  const icon = type === 'success' ? '✓' : '✕';
+  const t = document.createElement('div');
+  t.id = 'toast';
+  t.className = `toast toast-${type}`;
+  t.innerHTML = `<span class="toast-icon">${icon}</span> ${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
