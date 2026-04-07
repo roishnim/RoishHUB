@@ -464,7 +464,7 @@
 <script>
 // ── SUPABASE INIT ──────────────────────────────────────────────
 const SUPABASE_URL = 'https://jixulbrqvqudddpfjydi.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_jLQwyPfOry2vqgyscTqiYQ_sbukbDHh';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppeHVsYnJxdnF1ZGRkcGZqeWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTc2MDAsImV4cCI6MjA5MTEzMzYwMH0.GQh8z9PZOWMaZ-NLDCdeKYj9MPtf8hfcodZCIZkbbm0';
 
 let db;
 try {
@@ -1588,6 +1588,7 @@ async function runImport() {
   }
 }
 
+function escape(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
