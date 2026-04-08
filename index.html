@@ -1144,21 +1144,27 @@ let importFilename = '';
 const FIELD_HINTS = {
   first_name:       ['first name','firstname','first','fname','given name','forename'],
   last_name:        ['last name','lastname','last','lname','surname','family name'],
-  email:            ['email','email address','work email','e-mail','mail'],
-  phone:            ['phone','mobile','cell','telephone','phone number','mobile number'],
-  title:            ['title','job title','position','role','job role','job position'],
+  email:            ['email','email address','work email','e-mail','mail','attendance: email','attendance email','contact email'],
+  phone:            ['phone','mobile','cell','telephone','phone number','mobile number','contact phone'],
+  title:            ['title','job title','position','role','job role','job position','contact title','job function'],
   seniority:        ['seniority','level','seniority level','job level'],
   department:       ['department','dept','team','division','function'],
-  location:         ['location','city','contact city','contact location'],
-  linkedin_url:     ['linkedin','linkedin url','linkedin profile','profile url','li url'],
-  notes:            ['notes','note','comments','comment','bio'],
-  company_name:     ['company','company name','organization','organisation','employer','account','account name'],
-  company_website:  ['website','company website','web','url','company url','domain'],
-  company_industry: ['industry','sector','vertical','company industry'],
-  company_country:  ['country','company country','hq country','headquarters country'],
-  company_city:     ['company city','hq city','headquarters city','office city'],
+  location:         ['location','city','contact city','contact location','contact country'],
+  linkedin_url:     ['linkedin','linkedin url','linkedin profile','profile url','li url','contact linkedin'],
+  notes:            ['notes','note','comments','comment','bio','description'],
+  company_name:     ['company','company name','organization','organisation','employer','account','account name',
+                     'partner account name','partner account','company account','account: name'],
+  company_website:  ['website','company website','web','url','company url','domain',
+                     'partner account website','account website','company domain'],
+  company_industry: ['industry','sector','vertical','company industry',
+                     'partner account industry','account industry','partner account: industry'],
+  company_country:  ['country','company country','hq country','headquarters country',
+                     'partner account country','account country','billing country'],
+  company_city:     ['company city','hq city','headquarters city','office city','billing city'],
   company_linkedin: ['company linkedin','company linkedin url','linkedin company'],
-  company_size:     ['employees','company size','employee count','headcount','number of employees','# employees','no. employees'],
+  company_size:     ['employees','company size','employee count','headcount','number of employees',
+                     '# employees','no. employees','partner account: number of employees',
+                     'number of active opportunities','partner account: number of active opportunities'],
 };
 
 const FIELD_LABELS = {
@@ -1192,11 +1198,14 @@ function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return { headers: [], rows: [] };
 
-  // Detect delimiter
-  const firstLine = lines[0];
-  const commas = (firstLine.match(/,/g) || []).length;
-  const semis = (firstLine.match(/;/g) || []).length;
-  const delim = semis > commas ? ';' : ',';
+  // Detect delimiter — check first few lines to find the one with most separators
+  let delim = ',';
+  for (const line of lines.slice(0, 5)) {
+    const commas = (line.match(/,/g) || []).length;
+    const semis = (line.match(/;/g) || []).length;
+    if (semis > commas && semis > 2) { delim = ';'; break; }
+    if (commas > 2) { delim = ','; break; }
+  }
 
   function parseLine(line) {
     const result = [];
@@ -1218,9 +1227,27 @@ function parseCSV(text) {
     return result;
   }
 
-  const headers = parseLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
+  // Smart header detection: find the first line that looks like real column headers
+  // A real header row has multiple columns AND contains recognisable field-like words
+  // Skip rows that are just a report title (1 column, or a long single string with no delimiters)
+  const HEADER_CLUES = ['name','email','first','last','company','title','phone','linkedin',
+    'website','industry','country','department','account','attendance','partner','contact'];
+
+  let headerLineIndex = 0;
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const cols = parseLine(lines[i]);
+    const joined = cols.join(' ').toLowerCase();
+    const hasMultipleCols = cols.length > 1;
+    const looksLikeHeaders = HEADER_CLUES.some(clue => joined.includes(clue));
+    if (hasMultipleCols && looksLikeHeaders) {
+      headerLineIndex = i;
+      break;
+    }
+  }
+
+  const headers = parseLine(lines[headerLineIndex]).map(h => h.replace(/^"|"$/g, '').trim());
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = headerLineIndex + 1; i < lines.length; i++) {
     const values = parseLine(lines[i]);
     if (values.every(v => !v)) continue; // skip blank rows
     const row = {};
