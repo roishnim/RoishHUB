@@ -443,6 +443,51 @@
   .priority-medium { background: var(--peach); color: var(--peach-text); border-color: #f0c8a8; }
   .priority-low { background: var(--mint); color: var(--mint-text); border-color: #a0d8c0; }
   .sf-yes { background: var(--sky); color: var(--sky-text); border-color: #b8d8f8; }
+  /* ── TO DO ── */
+  .todo-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: default;
+  }
+  .todo-item:last-child { border-bottom: none; }
+  .todo-item:hover { background: var(--surface2); }
+  .todo-item.completed { opacity: 0.5; }
+  .todo-checkbox {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border2);
+    flex-shrink: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; margin-top: 1px;
+    background: white;
+  }
+  .todo-checkbox:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .todo-checkbox.checked { background: var(--accent); border-color: var(--accent); color: white; font-size: 11px; }
+  .todo-title { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.4; }
+  .todo-title.done { text-decoration: line-through; color: var(--muted); }
+  .todo-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  .todo-due { font-size: 11px; font-weight: 500; }
+  .todo-due.overdue { color: var(--rose-text); background: var(--rose); padding: 1px 7px; border-radius: 20px; }
+  .todo-due.today { color: var(--peach-text); background: var(--peach); padding: 1px 7px; border-radius: 20px; }
+  .todo-due.upcoming { color: var(--mint-text); background: var(--mint); padding: 1px 7px; border-radius: 20px; }
+  .todo-link { font-size: 11px; color: var(--accent); cursor: pointer; }
+  .todo-link:hover { text-decoration: underline; }
+  .todo-section-header {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted);
+    padding: 12px 16px 6px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .todo-filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .todo-filter-btn {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: white; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .todo-filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .todo-filter-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
 </style>
 </head>
 <body>
@@ -462,6 +507,9 @@
       </div>
       <div class="nav-item" onclick="showPage('prospects')" id="nav-prospects">
         <span class="nav-icon">🌸</span> Prospects
+      </div>
+      <div class="nav-item" onclick="showPage('todos')" id="nav-todos">
+        <span class="nav-icon">✅</span> To Do
       </div>
       <div class="nav-item" onclick="showPage('import')" id="nav-import">
         <span class="nav-icon">📥</span> Import CSV
@@ -530,6 +578,7 @@ let currentPage = 'companies';
 let companies = [];
 let contacts = [];
 let prospects = [];
+let tasks = [];
 let editingId = null;
 let viewingCompanyId = null;
 let viewingContactId = null;
@@ -551,19 +600,22 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadAll() {
-  const [cosRes, ctsRes, prosRes] = await Promise.all([
+  const [cosRes, ctsRes, prosRes, tasksRes] = await Promise.all([
     db.from('companies').select('*').order('name'),
     db.from('contacts').select('*, companies(name)').order('last_name'),
     db.from('prospects').select('*').order('created_at', { ascending: false }),
+    db.from('tasks').select('*, companies(name), contacts(first_name,last_name)').order('due_date', { ascending: true, nullsFirst: false }),
   ]);
   if (cosRes.error) throw new Error('Companies: ' + cosRes.error.message);
   if (ctsRes.error) throw new Error('Contacts: ' + ctsRes.error.message);
   companies = cosRes.data || [];
   contacts = ctsRes.data || [];
   prospects = prosRes.data || [];
+  tasks = tasksRes.data || [];
   document.getElementById('stat-companies').textContent = companies.length;
   document.getElementById('stat-contacts').textContent = contacts.length;
   document.getElementById('stat-prospects').textContent = prospects.length;
+  updateTodoBadge();
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────
@@ -588,6 +640,16 @@ function showPage(page) {
     document.getElementById('topbar-title').textContent = 'Prospects';
     document.getElementById('topbar-count').textContent = prospects.length + ' prospects';
     renderProspects();
+    return;
+  }
+
+  if (page === 'todos') {
+    document.getElementById('add-btn').style.display = 'inline-flex';
+    document.getElementById('add-btn').textContent = '＋ Add Task';
+    document.getElementById('topbar-title').textContent = 'To Do';
+    const pending = tasks.filter(t => !t.completed).length;
+    document.getElementById('topbar-count').textContent = pending + ' pending';
+    renderTodos();
     return;
   }
 
@@ -876,6 +938,7 @@ function openAddModal() {
   if (currentPage === 'companies') openAddCompany();
   else if (currentPage === 'contacts') openAddContact();
   else if (currentPage === 'prospects') openAddProspect();
+  else if (currentPage === 'todos') openAddTask();
 }
 
 // ── PROSPECTS ──────────────────────────────────────────────────
@@ -1970,6 +2033,213 @@ function showToast(msg, type = 'success') {
   t.innerHTML = `<span class="toast-icon">${icon}</span> ${msg}`;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
+}
+
+// ── TO DO ──────────────────────────────────────────────────────
+
+let todoFilter = 'pending';
+
+function updateTodoBadge() {
+  const pending = tasks.filter(t => !t.completed).length;
+  const navItem = document.getElementById('nav-todos');
+  if (!navItem) return;
+  navItem.querySelector('.todo-badge-dot')?.remove();
+  if (pending > 0) {
+    const dot = document.createElement('span');
+    dot.className = 'todo-badge-dot';
+    dot.style.cssText = 'margin-left:auto;background:var(--rose-text);color:white;border-radius:20px;font-size:10px;font-weight:600;padding:1px 7px;';
+    dot.textContent = pending;
+    navItem.appendChild(dot);
+  }
+}
+
+function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+
+function formatDueLabel(dateStr) {
+  if (!dateStr) return null;
+  const today = getTodayStr();
+  const d = new Date(dateStr + 'T12:00:00');
+  const formatted = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  if (dateStr < today) return { label: `Overdue · ${formatted}`, status: 'overdue' };
+  if (dateStr === today) return { label: 'Today', status: 'today' };
+  return { label: formatted, status: 'upcoming' };
+}
+
+function renderTodos() {
+  const today = getTodayStr();
+  let filtered;
+  if (todoFilter === 'pending') filtered = tasks.filter(t => !t.completed);
+  else if (todoFilter === 'today') filtered = tasks.filter(t => !t.completed && t.due_date === today);
+  else if (todoFilter === 'completed') filtered = tasks.filter(t => t.completed);
+  else filtered = tasks;
+
+  const pending = tasks.filter(t => !t.completed).length;
+  document.getElementById('topbar-count').textContent = pending + ' pending';
+
+  const overdue = filtered.filter(t => !t.completed && t.due_date && t.due_date < today);
+  const todayTasks = filtered.filter(t => !t.completed && t.due_date === today);
+  const upcoming = filtered.filter(t => !t.completed && t.due_date && t.due_date > today);
+  const noDue = filtered.filter(t => !t.completed && !t.due_date);
+  const done = filtered.filter(t => t.completed);
+
+  function group(label, items) {
+    if (!items.length) return '';
+    return `<div class="todo-section-header">${label}</div>${items.map(renderTodoItem).join('')}`;
+  }
+
+  let body = '';
+  if (todoFilter === 'completed') {
+    body = done.length ? done.map(renderTodoItem).join('') : `<div class="empty"><div class="empty-icon">🎉</div><div class="empty-text">No completed tasks yet</div></div>`;
+  } else if (todoFilter === 'all') {
+    body = group('Overdue', overdue) + group('Today', todayTasks) + group('Upcoming', upcoming) + group('No due date', noDue) + group('Completed', done);
+  } else {
+    const all = [...overdue, ...todayTasks, ...upcoming, ...noDue];
+    body = all.length
+      ? group('Overdue', overdue) + group('Today', todayTasks) + group('Upcoming', upcoming) + group('No due date', noDue)
+      : `<div class="empty"><div class="empty-icon">✨</div><div class="empty-text">All clear! No ${todoFilter==='today'?'tasks due today':'pending tasks'}.</div><button class="btn btn-primary" onclick="openAddTask()">＋ Add Task</button></div>`;
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="page">
+      <div class="todo-filters">
+        ${[['pending','Pending'],['today','Due Today'],['all','All Tasks'],['completed','Completed']].map(([v,l])=>
+          `<button class="todo-filter-btn ${todoFilter===v?'active':''}" onclick="todoFilter='${v}';renderTodos()">${l}</button>`
+        ).join('')}
+      </div>
+      <div class="table-wrap">${body || `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No tasks yet.</div><button class="btn btn-primary" onclick="openAddTask()">＋ Add Task</button></div>`}</div>
+    </div>`;
+}
+
+function renderTodoItem(t) {
+  const due = t.due_date ? formatDueLabel(t.due_date) : null;
+  const co = t.companies?.name || null;
+  const ct = t.contacts ? `${t.contacts.first_name} ${t.contacts.last_name}` : null;
+  const pbg = t.priority==='High' ? 'var(--rose)' : t.priority==='Low' ? 'var(--mint)' : 'var(--peach)';
+  const ptx = t.priority==='High' ? 'var(--rose-text)' : t.priority==='Low' ? 'var(--mint-text)' : 'var(--peach-text)';
+  return `
+    <div class="todo-item ${t.completed?'completed':''}">
+      <div class="todo-checkbox ${t.completed?'checked':''}" onclick="toggleTask('${t.id}',${t.completed})">${t.completed?'✓':''}</div>
+      <div style="flex:1;min-width:0">
+        <div class="todo-title ${t.completed?'done':''}">${escape(t.title)}</div>
+        ${t.notes ? `<p style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4">${escape(t.notes.substring(0,100))}${t.notes.length>100?'…':''}</p>` : ''}
+        <div class="todo-meta">
+          ${due ? `<span class="todo-due ${due.status}">${due.label}</span>` : ''}
+          ${t.priority ? `<span style="font-size:11px;font-weight:600;background:${pbg};color:${ptx};padding:1px 7px;border-radius:20px">${t.priority}</span>` : ''}
+          ${co ? `<span style="font-size:11px;color:var(--accent)">🏢 ${escape(co)}</span>` : ''}
+          ${ct ? `<span style="font-size:11px;color:var(--accent)">👤 ${escape(ct)}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="openEditTask('${t.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">✕</button>
+      </div>
+    </div>`;
+}
+
+async function toggleTask(id, wasCompleted) {
+  const now = !wasCompleted;
+  await db.from('tasks').update({ completed: now, completed_at: now ? new Date().toISOString() : null }).eq('id', id);
+  tasks = tasks.map(t => t.id === id ? { ...t, completed: now } : t);
+  updateTodoBadge();
+  renderTodos();
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  await db.from('tasks').delete().eq('id', id);
+  tasks = tasks.filter(t => t.id !== id);
+  updateTodoBadge();
+  showToast('Task deleted', 'success');
+  renderTodos();
+}
+
+function openAddTask() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Task';
+  document.getElementById('modal-body').innerHTML = taskForm({});
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveTask()">Save Task</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function openEditTask(id) {
+  editingId = id;
+  const t = tasks.find(x => x.id === id);
+  document.getElementById('modal-title').textContent = 'Edit Task';
+  document.getElementById('modal-body').innerHTML = taskForm(t);
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveTask()">Save Changes</button>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function taskForm(t) {
+  return `
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label class="form-label">Task *</label>
+        <input id="ft-title" type="text" value="${escape(t.title||'')}" placeholder="e.g. Follow up with Stripe re: proposal" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input id="ft-due" type="date" value="${t.due_date||''}" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select id="ft-priority">
+          ${['High','Medium','Low'].map(p=>`<option value="${p}" ${(t.priority||'Medium')===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Linked Company (optional)</label>
+        <select id="ft-company">
+          <option value="">— None —</option>
+          ${companies.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}" ${t.company_id===c.id?'selected':''}>${escape(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Linked Contact (optional)</label>
+        <select id="ft-contact">
+          <option value="">— None —</option>
+          ${contacts.sort((a,b)=>a.last_name.localeCompare(b.last_name)).map(c=>`<option value="${c.id}" ${t.contact_id===c.id?'selected':''}>${escape(c.first_name)} ${escape(c.last_name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Notes</label>
+        <textarea id="ft-notes" rows="2" placeholder="Any extra details…">${escape(t.notes||'')}</textarea>
+      </div>
+    </div>`;
+}
+
+async function saveTask() {
+  const title = document.getElementById('ft-title').value.trim();
+  if (!title) { showToast('Task title is required', 'error'); return; }
+  const btn = document.querySelector('#modal-footer .btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const payload = {
+    title,
+    due_date: document.getElementById('ft-due').value || null,
+    priority: document.getElementById('ft-priority').value || 'Medium',
+    company_id: document.getElementById('ft-company').value || null,
+    contact_id: document.getElementById('ft-contact').value || null,
+    notes: document.getElementById('ft-notes').value.trim() || null,
+  };
+  let error;
+  if (editingId) {
+    const res = await db.from('tasks').update(payload).eq('id', editingId).select('*, companies(name), contacts(first_name,last_name)');
+    error = res.error;
+    if (!error && res.data) tasks = tasks.map(t => t.id === editingId ? res.data[0] : t);
+  } else {
+    const res = await db.from('tasks').insert(payload).select('*, companies(name), contacts(first_name,last_name)');
+    error = res.error;
+    if (!error && res.data) tasks = [res.data[0], ...tasks];
+  }
+  if (error) { showToast('Error: ' + error.message, 'error'); btn.disabled = false; btn.textContent = 'Save Task'; return; }
+  updateTodoBadge();
+  closeModal();
+  showToast(editingId ? 'Task updated ✓' : 'Task added ✓', 'success');
+  if (currentPage === 'todos') renderTodos();
 }
 </script>
 </body>
